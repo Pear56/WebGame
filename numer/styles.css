@@ -1,0 +1,51 @@
+/* 全局样式 */
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #222;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+/* 游戏画布 */
+#gameCanvas {
+    display: block;
+    margin: auto;
+    background: #333;
+}
+
+/* 分数显示 */
+.score {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    font-size: 18px;
+}
+
+/* 游戏结束提示 */
+.game-over {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    color: red;
+}
+
+/* 重新开始按钮 */
+.restart-btn {
+    position: fixed;
+    top: 60%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    font-size: 20px;
+    border: none;
+    cursor: pointer;
+}
+
+.restart-btn:hover {
+    background-color: #45a049;
+}

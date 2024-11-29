@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字吃数字游戏</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            display: block;
+            margin: auto;
+            background: #333;
+        }
+        .score {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            font-size: 18px;
+        }
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: red;
+        }
+        .restart-btn {
+            position: fixed;
+            top: 60%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 20px;
+            border: none;
+            cursor: pointer;
+        }
+        .restart-btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="score">分数: 0</div>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let player, fallingNumbers, fallingBoxes, score, gameRunning, keys;
+        const maxValue = 1000000; // 最大玩家数字
+
+        // 初始化游戏
+        function initializeGame() {
+            // 使 canvas 自适应整个浏览器窗口
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            player = { x: canvas.width / 2, y: canvas.height - 50, size: 1 }; // 玩家位置设置为屏幕底部
+            fallingNumbers = [];
+            fallingBoxes = [];
+            score = 0;
+            gameRunning = true;
+            keys = { left: false, right: false };
+
+            // 移除游戏结束时的元素
+            const gameOverElement = document.querySelector('.game-over');
+            const restartButton = document.querySelector('.restart-btn');
+            if (gameOverElement) gameOverElement.remove();
+            if (restartButton) restartButton.remove();
+
+            // 启动游戏
+            gameLoop();
+        }
+
+        // 添加多个随机掉落的数字
+        function spawnNumbers() {
+            const numToSpawn = Math.floor(Math.random() * 3) + 1; // 每次生成1-3个数字
+            for (let i = 0; i < numToSpawn; i++) {
+                const numValue = Math.ceil(Math.random() * Math.min(1.5 * player.size, maxValue));
+                const x = Math.random() * (canvas.width - 40) + 20;
+                fallingNumbers.push({ x, y: 0, value: numValue });
+            }
+
+            // 添加红色惊喜礼盒
+            if (Math.random() < 0.2) { // 20%的概率生成礼盒
+                const boxX = Math.random() * (canvas.width - 40) + 20;
+                fallingBoxes.push({ x: boxX, y: 0 });
+            }
+        }
+
+        // 更新玩家数字和掉落数字位置
+        function updateGame() {
+            if (!gameRunning) return;
+
+            // 玩家移动
+            if (keys.left) player.x -= 5;
+            if (keys.right) player.x += 5;
+
+            // 防止越界
+            if (player.x < 20) player.x = 20;
+            if (player.x > canvas.width - 20) player.x = canvas.width - 20;
+
+            // 更新掉落数字
+            for (let num of fallingNumbers) {
+                num.y += 1; // 掉落速度
+                if (
+                    num.y >= player.y - 20 &&
+                    num.x >= player.x - 20 &&
+                    num.x <= player.x + 20
+                ) {
+                    // 检查碰撞
+                    if (num.value <= player.size) {
+                        // 能吃
+                        player.size += num.value;
+                        player.size = Math.round(player.size); // 四舍五入为整数
+                        score = player.size; // 得分就是玩家的数字
+                        fallingNumbers.splice(fallingNumbers.indexOf(num), 1);
+                    } else {
+                        // 游戏结束
+                        gameRunning = false;
+                        showGameOverScreen();
+                    }
+                }
+            }
+
+            // 更新掉落的惊喜礼盒（速度与普通数字相同）
+            for (let box of fallingBoxes) {
+                box.y += 1; // 礼盒与普通数字一样的速度
+                if (
+                    box.y >= player.y - 20 &&
+                    box.x >= player.x - 20 &&
+                    box.x <= player.x + 20
+                ) {
+                    // 玩家吃到礼盒，触发惊喜
+                    triggerSurprise();
+                    fallingBoxes.splice(fallingBoxes.indexOf(box), 1);
+                }
+            }
+
+            // 移除超出边界的数字和礼盒
+            fallingNumbers = fallingNumbers.filter(num => num.y < canvas.height);
+            fallingBoxes = fallingBoxes.filter(box => box.y < canvas.height);
+        }
+
+        // 绘制玩家、掉落数字、惊喜礼盒
+        function drawGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 计算玩家的圆形大小（每增加100倍，增加一个单位）
+            let playerRadius = Math.min(canvas.height / 20, Math.log10(player.size / 100) + 10);
+            playerRadius = Math.max(20, playerRadius); // 确保玩家半径不小于20
+
+            // 绘制玩家
+            ctx.fillStyle = '#4CAF50';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, playerRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = `${Math.max(16, playerRadius / 2)}px Arial`; // 确保文本大小与圆形相匹配
+            ctx.textAlign = 'center';
+            ctx.fillText(player.size, player.x, player.y + playerRadius / 3);
+
+            // 绘制掉落数字
+            ctx.fillStyle = '#FFC107';
+            for (let num of fallingNumbers) {
+                const fontSize = Math.max(12, 20 + num.value / 10); // 根据数字大小调整字体大小
+                const numRadius = Math.min(Math.log10(num.value / 100) + 10, Math.max(20, fontSize / 2)); // 增加固定大小增幅的规则
+                ctx.font = `${numRadius}px Arial`;
+                ctx.beginPath();
+                ctx.arc(num.x, num.y, numRadius, 0, Math.PI * 2); // 动态调整圆形大小
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.fillText(num.value, num.x, num.y + numRadius / 3); // 保证文本居中
+            }
+
+            // 绘制掉落的红色惊喜礼盒
+            ctx.fillStyle = 'red';
+            for (let box of fallingBoxes) {
+                ctx.fillRect(box.x - 20, box.y - 20, 40, 40); // 礼盒为方形
+            }
+
+            // 更新分数
+            document.querySelector('.score').innerText = '分数: ' + score;
+        }
+
+        // 随机触发惊喜效果
+        function triggerSurprise() {
+            const randomEffect = Math.random();
+            if (randomEffect < 0.25) {
+                player.size *= 2;  // 乘2
+            } else if (randomEffect < 0.5) {
+                player.size *= 4;  // 乘4
+            } else if (randomEffect < 0.75) {
+                player.size *= 6;  // 乘6
+            } else {
+                player.size = Math.max(1, player.size / (Math.floor(Math.random() * 4) + 2));  // 除以2、3、5或6，最小为1
+            }
+            player.size = Math.round(player.size); // 四舍五入为整数
+        }
+
+        // 显示游戏结束画面并提供重玩按钮
+        function showGameOverScreen() {
+            const gameOverText = document.createElement('div');
+            gameOverText.className = 'game-over';
+            gameOverText.innerText = '游戏结束！';
+            document.body.appendChild(gameOverText);
+
+            const restartButton = document.createElement('button');
+            restartButton.className = 'restart-btn';
+            restartButton.innerText = '重新开始';
+            document.body.appendChild(restartButton);
+
+            restartButton.addEventListener('click', initializeGame);
+        }
+
+        // 键盘事件监听
+        document.addEventListener('keydown', e => {
+            if (e.key === 'ArrowLeft') keys.left = true;
+            if (e.key === 'ArrowRight') keys.right = true;
+        });
+
+        document.addEventListener('keyup', e => {
+            if (e.key === 'ArrowLeft') keys.left = false;
+            if (e.key === 'ArrowRight') keys.right = false;
+        });
+
+        // 游戏主循环
+        function gameLoop() {
+            if (gameRunning) {
+                updateGame();
+                drawGame();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // 定时生成新数字
+        setInterval(spawnNumbers, 1500); // 每1.5秒生成一组数字
+
+        // 初始化游戏
+        initializeGame();
+    </script>
+</body>
+</html>
